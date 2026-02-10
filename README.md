@@ -1,39 +1,35 @@
-# SnackTraveler: Self-Evolving Web Exploration Agent System
+## Main Execution Flow
 
-## Overview
+```mermaid
+graph TD
+    A[Start] --> B[Initialize EliteMap and BanditAllocator];
+    B --> C[Create initial random population];
+    
+    subgraph "Evolutionary Loop (Exploration)"
+        D[For each generation] --> E{For each genome in population};
+        E --> F[Execute Traveler];
+        F --> G[Evaluate result -> EvaluatedTraveler];
+        G --> E;
+        E -- End of population --> H[Perform non-dominated sort on evaluated population];
+        H --> I[Calculate crowding distance for each front];
+        I --> J{For each evaluated individual};
+        J --> K[Add individual to EliteMap];
+        K --> J;
+        J -- End of individuals --> L[Create new population using Generation Scheduler];
+        L --> D;
+    end
 
-SnackTraveler is a proof-of-concept system for a self-evolving web exploration agent. It uses evolutionary algorithms to discover and maintain a diverse population of strategies for web exploration.
+    C --> D;
+    D -- Loop finished --> M[End Exploration Phase];
 
-This project demonstrates a hybrid approach combining:
-- **MAP-Elites** for diversity preservation.
-- A **Multi-Armed Bandit (Thompson Sampling)** for efficient strategy selection.
-- **Multi-objective fitness evaluation (NSGA-II)** to assess strategies without manual weighting.
-
-## Detailed Documentation
-
-For a full breakdown of the project's architecture, components, and concepts, please refer to the detailed documentation in the `docs` directory.
-
-- **[Project Overview](./docs/00_Project_Overview.md)**
-- **[System Architecture](./docs/01_Architecture.md)**
-- **[Data Models](./docs/02_Data_Models.md)**
-- **[Evaluation Engine](./docs/03_Evaluation.md)**
-- **[MAP-Elites Implementation](./docs/04_MAP_Elites.md)**
-- **[Bandit Allocator](./docs/05_Bandit.md)**
-- **[Execution Flow](./docs/06_Execution_Flow.md)**
-- **[Usage Guide](./docs/07_Usage.md)**
-
-## Quick Start
-
-### Running the Simulation
-
-From the project root (`snack/`), run:
-```bash
-python3 -m snackTraveler.main
-```
-
-### Running Tests
-
-From the project root (`snack/`), run:
-```bash
-python3 -m unittest discover snackTraveler/tests
+    subgraph "Bandit Loop (Exploitation)"
+        M --> N[For each bandit run];
+        N --> O[Bandit selects a genome to run];
+        O --> P[Execute Traveler];
+        P --> Q[Evaluate result and update Bandit model];
+        Q --> R[Add evaluated traveler to EliteMap];
+        R --> N;
+    end
+    
+    N -- Loop finished --> S[Simulation Complete];
 ```
