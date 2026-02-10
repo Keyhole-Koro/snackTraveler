@@ -3,13 +3,13 @@
 ### Evaluation and Map Management Handler
 ```mermaid
 graph TD
-    A[Start with ExecutionResult, EliteMap, BanditAllocator] --> B{Calculate Fitness and Features};
+    A["Start with ExecutionResult, EliteMap, BanditAllocator"] --> B{Calculate Fitness and Features};
     B --> C[Create EvaluatedTraveler];
     C --> D{Is it a bandit run?};
     D -- Yes --> E{Update Bandit Model};
     E --> F[Get feature coordinates];
-    F --> G["Get reward (downstream_value)"];
-    G --> H[Call bandit_allocator.update_arm(coords, reward)];
+    F --> G["Get reward: downstream_value"];
+    G --> H[Update arm with coords and reward];
     H --> I[Return EvaluatedTraveler];
     D -- No --> I;
 ```
