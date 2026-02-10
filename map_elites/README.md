@@ -3,7 +3,7 @@
 ```mermaid
 graph TD
     A[Start with an EvaluatedTraveler] --> B{Add Individual};
-    B --> C{Get feature coordinates (niche)};
+    B --> C{"Get feature coordinates (niche)"};
     C --> D{Is niche empty?};
     D -- Yes --> E[Add individual to niche];
     D -- No --> F{Is new individual better than existing?};

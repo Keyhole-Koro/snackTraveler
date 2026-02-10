@@ -8,7 +8,7 @@ graph TD
     C --> D{Is it a bandit run?};
     D -- Yes --> E{Update Bandit Model};
     E --> F[Get feature coordinates];
-    F --> G[Get reward (downstream_value)];
+    F --> G["Get reward (downstream_value)"];
     G --> H[Call bandit_allocator.update_arm(coords, reward)];
     H --> I[Return EvaluatedTraveler];
     D -- No --> I;
@@ -17,7 +17,7 @@ graph TD
 ### Generation Scheduler Handler
 ```mermaid
 graph TD
-    A[Start with EliteMap, num_offspring] --> B{Get random elites (parents)};
+    A[Start with EliteMap, num_offspring] --> B{"Get random elites (parents)"};
     B --> C{Parents found?};
     C -- No --> D[Return empty list];
     C -- Yes --> E{For each offspring};
@@ -31,7 +31,7 @@ graph TD
 ### Bandit Allocator Handler
 ```mermaid
 graph TD
-    A[Start with BanditAllocator, EliteMap] --> B{Select most promising niche (select_arm)};
+    A[Start with BanditAllocator, EliteMap] --> B{"Select most promising niche (select_arm)"};
     B --> C{Get elite from that niche};
     C --> D{Elite found?};
     D -- Yes --> E[Return elite's genome];

@@ -5,7 +5,7 @@ graph TD
     A[Start] --> B{Select Arm};
     B --> C{Any arms created?};
     C -- No --> D[Return random niche];
-    C -- Yes --> E[For each arm, sample from Beta(alpha, beta)];
+    C -- Yes --> E["For each arm, sample from Beta(alpha, beta)"];
     E --> F[Select arm with highest sample];
     F --> G[Return best arm];
     

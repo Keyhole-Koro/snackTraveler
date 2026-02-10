@@ -6,7 +6,7 @@ graph TD
     A[Start with ExecutionResult] --> B{Calculate Feature Descriptors};
     B --> C{Analyze retrieved URLs for authority};
     B --> D{Generate mock concreteness score};
-    C & D --> E[Return FeatureDescriptors (concreteness, authority)];
+    C & D --> E["Return FeatureDescriptors (concreteness, authority)"];
 ```
 
 ### Fitness Calculation
