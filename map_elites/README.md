@@ -10,7 +10,7 @@ graph TD
     F -- Yes --> E;
     F -- No --> G[Do nothing];
     E --> H[Map updated];
-    G --> I[Map not updated];
+    G --> H;
 
     subgraph "Get Random Elites"
         J[Select k random elites] --> K[Return list of k elites];

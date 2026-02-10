@@ -13,4 +13,6 @@ graph TD
     I --> J{Reward >= 0.5?};
     J -- Yes --> K[Increment alpha];
     J -- No --> L[Increment beta];
+    K --> M[Arm updated];
+    L --> M;
 ```

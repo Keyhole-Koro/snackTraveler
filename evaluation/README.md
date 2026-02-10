@@ -27,12 +27,17 @@ graph TD
     D -- Yes --> E[Add 'q' to p.dominated_solutions];
     D -- No --> F{Does 'q' dominate 'p'?};
     F -- Yes --> G[Increment p.domination_count];
-    F -- No --> C;
-    G --> C;
-    E --> C;
-    C -- All 'q' processed --> H{p.domination_count == 0?};
-    H -- Yes --> I[Add 'p' to Front 0];
-    H -- No --> B;
-    B -- All 'p' processed --> J[Build subsequent fronts based on domination counts];
-    J --> K[Return all fronts];
+    F -- No --> H[Continue];
+    E --> H;
+    G --> H;
+    H --> I{All 'q' processed?};
+    I -- No --> C;
+    I -- Yes --> J{p.domination_count == 0?};
+    J -- Yes --> K[Add 'p' to Front 0];
+    J -- No --> L[Add to counter];
+    K --> M{All 'p' processed?};
+    L --> M;
+    M -- No --> B;
+    M -- Yes --> N[Build subsequent fronts based on domination counts];
+    N --> O[Return all fronts];
 ```
