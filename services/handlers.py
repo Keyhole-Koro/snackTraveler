@@ -83,18 +83,47 @@ def _mutate_genome(genome: TravelerGenome) -> TravelerGenome:
         
     return TravelerGenome.model_validate(new_genome.model_dump(exclude_none=True)) # Re-validate and get new UUID
 
-def generation_scheduler_handler(elite_map: EliteMap, num_offspring: int) -> List[TravelerGenome]:
+def generation_scheduler_handler(
+    elite_map: EliteMap, 
+    num_offspring: int,
+    bandit_allocator: BanditAllocator = None,
+    bandit_guidance_weight: float = 0.0
+) -> List[TravelerGenome]:
     """
     Simulates the periodic job that creates new individuals for exploration.
-    """
-    parents = elite_map.get_random_elites(k=num_offspring)
-    if not parents:
-        return []
     
+    Args:
+        elite_map: The elite map containing current best solutions
+        num_offspring: Number of offspring to generate
+        bandit_allocator: Optional bandit for guided parent selection
+        bandit_guidance_weight: Weight for bandit guidance (0.0 = pure random, 1.0 = pure bandit)
+                               Only used if bandit_allocator is provided.
+    
+    Returns:
+        List of mutated offspring genomes
+    """
     offspring = []
+    
     for _ in range(num_offspring):
-        parent = random.choice(parents)
-        child_genome = _mutate_genome(parent.genome)
+        # Decide whether to use bandit guidance for this parent selection
+        use_bandit = (
+            bandit_allocator is not None 
+            and bandit_guidance_weight > 0.0
+            and random.random() < bandit_guidance_weight
+        )
+        
+        if use_bandit:
+            # Use bandit to select a promising niche
+            parent_genome = bandit_allocator_handler(bandit_allocator, elite_map)
+        else:
+            # Traditional random selection from elite map
+            parents = elite_map.get_random_elites(k=1)
+            if not parents:
+                continue
+            parent_genome = parents[0].genome
+        
+        # Mutate the selected parent to create offspring
+        child_genome = _mutate_genome(parent_genome)
         offspring.append(child_genome)
         
     return offspring

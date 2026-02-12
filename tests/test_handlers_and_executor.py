@@ -58,6 +58,40 @@ class TestHandlersAndExecutor(unittest.TestCase):
         self.assertEqual(len(offspring), 5)
         self.assertNotEqual(offspring[0].genome_id, self.genome.genome_id)
 
+    def test_generation_scheduler_with_bandit_guidance(self):
+        """Test that the scheduler can use bandit guidance for parent selection."""
+        # Add multiple elites to different niches
+        for i in range(3):
+            genome = create_mock_genome()
+            elite = EvaluatedTraveler(
+                genome=genome,
+                fitness=Fitness(novelty=0.5, coverage=0.5, cost=10, reliability=0.5, downstream_value=0.5),
+                features=FeatureDescriptors(concreteness=0.3 + i * 0.2, authority=0.5),
+                rank=0
+            )
+            self.elite_map.add_individual(elite)
+        
+        # Test with 0% bandit guidance (should be same as random)
+        offspring_random = generation_scheduler_handler(
+            self.elite_map, num_offspring=5, 
+            bandit_allocator=self.bandit, bandit_guidance_weight=0.0
+        )
+        self.assertEqual(len(offspring_random), 5)
+        
+        # Test with 100% bandit guidance
+        offspring_bandit = generation_scheduler_handler(
+            self.elite_map, num_offspring=5,
+            bandit_allocator=self.bandit, bandit_guidance_weight=1.0
+        )
+        self.assertEqual(len(offspring_bandit), 5)
+        
+        # Test with 50% hybrid
+        offspring_hybrid = generation_scheduler_handler(
+            self.elite_map, num_offspring=10,
+            bandit_allocator=self.bandit, bandit_guidance_weight=0.5
+        )
+        self.assertEqual(len(offspring_hybrid), 10)
+
     def test_bandit_allocator_handler(self):
         """Test that the bandit allocator selects an elite."""
         # Add an elite to the map
