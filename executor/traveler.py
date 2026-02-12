@@ -5,7 +5,7 @@ from typing import List, Dict
 from snackTraveler.utils.data_models import TravelerGenome, ExecutionResult
 from snackTraveler.executor.browser import SearchClient, WebCrawler
 from snackTraveler.utils.source_memory import SourceMemory
-from snackPersona.llm.llm_factory import create_llm_client
+
 
 class Traveler:
     """
