@@ -15,9 +15,9 @@ from snackTraveler.evaluation.fitness import non_dominated_sort, calculate_crowd
 
 
 # --- Simulation Parameters ---
-INITIAL_POPULATION_SIZE = 20
-NUM_GENERATIONS = 10
-NUM_OFFSPRING_PER_GENERATION = 10
+INITIAL_POPULATION_SIZE = 10
+NUM_GENERATIONS = 5
+NUM_OFFSPRING_PER_GENERATION = 5
 MAP_RESOLUTION = 10
 NUM_BANDIT_RUNS = 5
 

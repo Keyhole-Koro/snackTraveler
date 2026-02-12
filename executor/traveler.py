@@ -1,69 +1,144 @@
 import random
 import time
+from typing import List, Dict
+
 from snackTraveler.utils.data_models import TravelerGenome, ExecutionResult
+from snackTraveler.executor.browser import SearchClient, WebCrawler
+from snackPersona.llm.llm_factory import create_llm_client
 
 class Traveler:
     """
-    A mock traveler executor.
-
-    In a real system, this class would interact with LLMs, search APIs,
-    and web pages. Here, it just simulates the execution and returns a
-    mock result.
+    Real web traveler executor using a hybrid strategy (Search + Crawl).
     """
     def __init__(self, genome: TravelerGenome):
         self.genome = genome
+        # Use simple search client for now (requires googlesearch-python)
+        self.search_client = SearchClient(num_results=5)
+        self.crawler = WebCrawler(timeout=10)
+        # TODO: Inject LLM client properly in production
+        # For now, we use a default logic or minimal prompt
+        # self.llm_client = create_llm_client("gemini-flash")
 
     def execute(self) -> ExecutionResult:
         """
-        Simulates a web exploration task based on the genome.
+        Executes the hybrid exploration strategy.
+        1. Generate query (simple template for now)
+        2. Perform seed search
+        3. Crawl/Deep dive based on genome parameters
         """
         start_time = time.time()
-
-        # Simulate API calls based on search depth
-        api_calls = 5 * self.genome.search_depth + random.randint(1, 5)
-
-        # Simulate latency
-        time.sleep(random.uniform(0.1, 0.5) * self.genome.search_depth)
         
-        # Simulate generating URLs based on source bias
-        retrieved_urls = self._simulate_url_generation()
+        # 1. Generate Query
+        query = self._generate_query()
+        
+        # 2. Seed Search
+        # print(f"Searching for: {query}")
+        seed_urls = self.search_client.search(query)
+        
+        # 3. Hybrid Selection & Crawling
+        # Initial depth 0
+        visited_urls = []
+        retrieved_content = []
+        
+        # Priority queue or simple list to explore
+        # Format: (url, depth, score)
+        to_visit = [(url, 0) for url in seed_urls]
+        
+        # Limit total visits to avoid infinite loops
+        max_visits = 5 + (self.genome.search_depth * 3)
+        visit_count = 0
+        
+        while to_visit and visit_count < max_visits:
+            # Simple heuristic: Pop random or based on score?
+            # For now, popping first (BFS-ish) but we can sort by genome bias
+            # Let's sort to_visit based on genome bias before popping
+            to_visit.sort(key=lambda x: self._score_url(x[0]), reverse=True)
+            
+            url, depth = to_visit.pop(0)
+            
+            if url in visited_urls:
+                continue
+            
+            # Fetch
+            page_data = self.crawler.fetch_page(url)
+            if not page_data:
+                continue
+            
+            visited_urls.append(url)
+            visit_count += 1
+            retrieved_content.append(page_data)
+            
+            # Expand if depth allows
+            if depth < self.genome.search_depth:
+                # Extract links and add to queue
+                new_links = page_data.get("links", [])
+                
+                # Filter/Score new links
+                # If novelty_weight is high, prefer external domains or less common ones
+                random.shuffle(new_links) # Shuffle to avoid just following menu links
+                
+                for link in new_links[:5]: # Add top 5 links to avoid explosion
+                    if link not in visited_urls:
+                        to_visit.append((link, depth + 1))
 
         execution_time = time.time() - start_time
-
+        
         return ExecutionResult(
             genome_id=self.genome.genome_id,
-            retrieved_urls=retrieved_urls,
-            generated_queries=[f"mock_query_{i}" for i in range(3)],
-            log="Mock execution completed successfully.",
-            api_calls=api_calls,
+            retrieved_urls=visited_urls,
+            generated_queries=[query],
+            log=f"Visited {len(visited_urls)} pages. Depth {self.genome.search_depth}.",
+            content_summary={"pages": [p["title"] for p in retrieved_content]}, # Simplified
+            api_calls=1, # One search call
             execution_time=execution_time,
         )
 
-    def _simulate_url_generation(self) -> list[str]:
-        """Generates fake URLs based on the source_bias in the genome."""
-        urls = []
-        source_domains = {
-            'academic': ['https://arxiv.org/abs/2305.12345', 'https://www.nature.com/articles/s41586-023-06122-2'],
-            'news': ['https://www.nikkei.com/article/DGXZQOUC01001_R00C23A5000000/', 'https://www.bbc.com/news/technology-65506729'],
-            'official': ['https://www.digital.go.jp/policies/ai/', 'https://openai.com/blog/function-calling-and-other-api-updates'],
-            'blogs': ['https://qiita.com/advent-calendar/2023/llm', 'https://zenn.dev/articles/abc123def456']
+    def _generate_query(self) -> str:
+        """Generates a search query based on the template ID."""
+        # Simple template mapping for now. In future, use LLM.
+        templates = {
+            "template_v1_broad": "latest trends in technology 2026",
+            "template_v2_specific": "AI implementation examples in agriculture",
+            "template_v3_questioning": "Is remote work actually productive?",
+            "template_v4_news_focused": "breaking news technology sector"
+        }
+        base = templates.get(self.genome.query_template_id, "technology news")
+        return base
+
+    def _score_url(self, url: str) -> float:
+        """
+        Scores a URL based on the genome's source_bias.
+        Higher score = more likely to be visited first.
+        """
+        score = 0.5 # Base score
+        
+        # Domain heuristics
+        domain_map = {
+            "academic": [".edu", ".ac.jp", "arxiv.org", "scholar", "nature.com"],
+            "news": ["cnn.com", "bbc.com", "nikkei.com", "reuters.com", "yahoo.co.jp"],
+            "official": [".gov", ".go.jp", "digital.go.jp", "whitehouse.gov"],
+            "blogs": ["hatenablog", "note.com", "qiita.com", "medium.com", "ameblo.jp"]
         }
         
-        # Weigh the choices based on bias
-        choices = []
-        for source, bias in self.genome.source_bias.model_dump().items():
-            # Convert bias [-1, 1] to a weight [0, 2]
-            weight = int((bias + 1) * 10)
-            choices.extend([source] * weight)
-
-        for _ in range(5 * self.genome.search_depth):
-            if not choices: continue
-            chosen_source = random.choice(choices)
-            if source_domains.get(chosen_source):
-                urls.append(random.choice(source_domains[chosen_source]))
+        bias = self.genome.source_bias
         
-        return list(set(urls))
+        for cat, keywords in domain_map.items():
+            for kw in keywords:
+                if kw in url:
+                    # Add the bias weight for this category
+                    # Bias is [-1, 1].
+                    # If bias is 1.0, we add significantly. If -1.0, we subtract.
+                    cat_bias = getattr(bias, cat, 0)
+                    score += cat_bias * 0.5 
+                    break
+        
+        # Novelty weight influence?
+        # If novelty is high, maybe add random noise to score to encourage exploration
+        if self.genome.novelty_weight > 0.7:
+             score += random.uniform(-0.2, 0.2)
+             
+        return score
 
     def __str__(self) -> str:
-        return f"Traveler(genome_id={self.genome.genome_id})"
+        return f"HybridTraveler(genome_id={self.genome.genome_id}, depth={self.genome.search_depth})"
 

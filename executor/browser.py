@@ -1,0 +1,83 @@
+import requests
+from bs4 import BeautifulSoup
+from googlesearch import search
+import time
+import random
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
+class SearchClient:
+    """
+    Wrapper around Google Search API (or scraping via googlesearch-python).
+    """
+    def __init__(self, num_results=5, language="ja"):
+        self.num_results = num_results
+        self.language = language
+
+    def search(self, query: str) -> list[str]:
+        """Perform a Google search and return a list of URLs."""
+        results = []
+        try:
+            # Adding a small random sleep to be polite
+            time.sleep(random.uniform(1.0, 3.0))
+            results = list(search(query, num_results=self.num_results, lang=self.language))
+        except Exception as e:
+            print(f"Search failed: {e}")
+        
+        return results
+
+class WebCrawler:
+    """
+    Simple crawler to fetch page content and extract links.
+    """
+    def __init__(self, timeout=10):
+        self.timeout = timeout
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
+    def fetch_page(self, url: str) -> dict:
+        """
+        Fetches a page and returns its title, text content, and valid links.
+        """
+        try:
+            response = requests.get(url, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # Simple encoding fix
+            if response.encoding is None:
+                response.encoding = 'utf-8'
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Remove scripts and styles
+            for script in soup(["script", "style"]):
+                script.decompose()
+
+            text = soup.get_text(separator=' ', strip=True)
+            title = soup.title.string if soup.title else "No Title"
+            
+            # Extract links
+            links = []
+            base_domain = urlparse(url).netloc
+            for a in soup.find_all('a', href=True):
+                href = a['href']
+                if href.startswith('http'):
+                    links.append(href)
+                elif href.startswith('/'):
+                     # Handle relative URLs simply? Or ignore for now to focus on external
+                     # For hybrid traveler, we might want external links more
+                     pass
+
+            return {
+                "url": url,
+                "title": title,
+                "content": text[:5000], # Limit content size
+                "links": list(set(links)),
+                "domain": base_domain
+            }
+        except Exception as e:
+            # print(f"Crawl failed for {url}: {e}")
+            return None

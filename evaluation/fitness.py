@@ -12,21 +12,59 @@ def calculate_fitness(result: ExecutionResult) -> Fitness:
     """
     Calculates the multi-objective fitness scores from execution results.
 
-    **NOTE:** This is a MOCK implementation. In a real system, this function
-    would perform complex analysis of the execution results.
-    - Novelty: Compare content embeddings to a historical archive.
-    - Coverage: Check for newly covered topics/entities against a knowledge base.
-    - Reliability: Score domains against a predefined authority list.
-    - Cost: Use actual API calls and execution time from the result.
-    - Downstream Value: This would likely be updated asynchronously after
-      user interaction, but is mocked here for simulation.
     """
+    # Real metrics approximation
+    
+    # 1. Cost: Actual execution time + API calls
+    # Normalize: expect ~10s execution and ~5 calls?
+    cost = (result.execution_time / 60.0) + (result.api_calls / 20.0)
+    cost = min(1.0, cost)
+
+    # 2. Coverage: Ratio of unique domains found
+    from urllib.parse import urlparse
+    unique_domains = set()
+    for url in result.retrieved_urls:
+        try:
+            unique_domains.add(urlparse(url).netloc)
+        except:
+            pass
+    # Expecting up to 10 unique domains for high coverage in this short task
+    coverage = min(1.0, len(unique_domains) / 10.0)
+
+    # 3. Reliability: (Reusing simple domain scoring for now, similar to features)
+    authority_scores = {'ac.jp': 0.9, 'gov': 0.9, 'go.jp': 0.9, 'nikkei.com': 0.8, 'reuters.com': 0.8}
+    rel_score = 0
+    for d in unique_domains:
+        val = 0.5
+        for k, v in authority_scores.items():
+            if k in d:
+                val = v
+                break
+        rel_score += val
+    reliability = (rel_score / len(unique_domains)) if unique_domains else 0.5
+
+    # 4. Novelty: Heuristic - more potential for novelty if we went deep?
+    # Or if we found domains NOT in the top authority list?
+    novel_domains = 0
+    for d in unique_domains:
+        is_common = False
+        for k in authority_scores.keys():
+            if k in d:
+                is_common = True
+                break
+        if not is_common:
+            novel_domains += 1
+    novelty = min(1.0, novel_domains / 5.0)
+
+    # 5. Downstream Value: Random (simulating user feedback placeholder)
+    downstream_value = random.uniform(0.3, 0.9)
+
     return Fitness(
-        novelty=random.uniform(0, 1),
-        coverage=random.uniform(0, 1),
-        reliability=random.uniform(0, 1),
-        cost=result.api_calls + result.execution_time / 10.0, # Example cost function
-        downstream_value=random.uniform(0, 1),
+        novelty=novelty,
+        coverage=coverage,
+        reliability=reliability,
+        cost=cost, 
+        downstream_value=downstream_value,
     )
 
 

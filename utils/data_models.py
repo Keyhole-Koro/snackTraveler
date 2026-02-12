@@ -31,7 +31,7 @@ class TravelerGenome(BaseModel):
 # -----------------
 
 class ExecutionResult(BaseModel):
-    """Mock-up of the data returned from a traveler's execution."""
+    """Data returned from a traveler's execution."""
     genome_id: str
     retrieved_urls: List[str]
     generated_queries: List[str]
