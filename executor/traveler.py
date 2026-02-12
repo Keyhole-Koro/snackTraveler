@@ -4,20 +4,18 @@ from typing import List, Dict
 
 from snackTraveler.utils.data_models import TravelerGenome, ExecutionResult
 from snackTraveler.executor.browser import SearchClient, WebCrawler
+from snackTraveler.utils.source_memory import SourceMemory
 from snackPersona.llm.llm_factory import create_llm_client
 
 class Traveler:
     """
     Real web traveler executor using a hybrid strategy (Search + Crawl).
     """
-    def __init__(self, genome: TravelerGenome):
+    def __init__(self, genome: TravelerGenome, memory: SourceMemory = None):
         self.genome = genome
-        # Use simple search client for now (requires googlesearch-python)
         self.search_client = SearchClient(num_results=5)
         self.crawler = WebCrawler(timeout=10)
-        # TODO: Inject LLM client properly in production
-        # For now, we use a default logic or minimal prompt
-        # self.llm_client = create_llm_client("gemini-flash")
+        self.memory = memory
 
     def execute(self) -> ExecutionResult:
         """
@@ -81,17 +79,50 @@ class Traveler:
                     if link not in visited_urls:
                         to_visit.append((link, depth + 1))
 
+        # Record visited domains in source memory
+        if self.memory:
+            from urllib.parse import urlparse
+            for page in retrieved_content:
+                try:
+                    domain = urlparse(page["url"]).netloc
+                    self.memory.record_visit(domain)
+                except:
+                    pass
+
         execution_time = time.time() - start_time
+        
+        # Extract headlines from page titles
+        headlines = self._extract_headlines(retrieved_content)
         
         return ExecutionResult(
             genome_id=self.genome.genome_id,
             retrieved_urls=visited_urls,
             generated_queries=[query],
             log=f"Visited {len(visited_urls)} pages. Depth {self.genome.search_depth}.",
-            content_summary={"pages": [p["title"] for p in retrieved_content]}, # Simplified
-            api_calls=1, # One search call
+            content_summary={"pages": [p["title"] for p in retrieved_content]},
+            headlines=headlines,
+            api_calls=1,
             execution_time=execution_time,
         )
+
+    def _extract_headlines(self, pages: List[Dict]) -> List[str]:
+        """Extracts clean headlines from crawled page data."""
+        headlines = []
+        for page in pages:
+            title = page.get("title", "").strip()
+            if not title or title == "No Title":
+                continue
+            # Clean: remove site suffixes like " - CNN" or " | Reuters"
+            for sep in [" - ", " | ", " – ", " — ", " :: "]:
+                if sep in title:
+                    title = title.split(sep)[0].strip()
+                    break
+            # Truncate long titles
+            if len(title) > 80:
+                title = title[:77] + "..."
+            if title and title not in headlines:
+                headlines.append(title)
+        return headlines
 
     def _generate_query(self) -> str:
         """Generates a search query based on the template ID."""
@@ -125,15 +156,20 @@ class Traveler:
         for cat, keywords in domain_map.items():
             for kw in keywords:
                 if kw in url:
-                    # Add the bias weight for this category
-                    # Bias is [-1, 1].
-                    # If bias is 1.0, we add significantly. If -1.0, we subtract.
                     cat_bias = getattr(bias, cat, 0)
                     score += cat_bias * 0.5 
                     break
         
-        # Novelty weight influence?
-        # If novelty is high, maybe add random noise to score to encourage exploration
+        # Boost from persistent source memory
+        if self.memory:
+            from urllib.parse import urlparse
+            try:
+                domain = urlparse(url).netloc
+                score += self.memory.get_domain_boost(domain)
+            except:
+                pass
+        
+        # Novelty weight influence
         if self.genome.novelty_weight > 0.7:
              score += random.uniform(-0.2, 0.2)
              

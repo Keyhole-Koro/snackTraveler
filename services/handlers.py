@@ -19,7 +19,8 @@ def evaluation_and_map_management_handler(
     result: ExecutionResult, 
     elite_map: EliteMap,
     bandit_allocator: BanditAllocator = None,
-    is_bandit_run: bool = False
+    is_bandit_run: bool = False,
+    feedback_reward: float = None  # New argument
 ) -> EvaluatedTraveler:
     """
     Simulates the service that evaluates a result and updates the elite map.
@@ -28,6 +29,10 @@ def evaluation_and_map_management_handler(
     # 1. Calculate fitness and features
     fitness = calculate_fitness(result)
     features = calculate_feature_descriptors(result)
+    
+    # Override downstream_value if feedback is provided
+    if feedback_reward is not None:
+        fitness.downstream_value = feedback_reward
     
     # This part would require fetching the original genome from a database
     # For simulation, we assume we have it or can reconstruct it.
@@ -52,6 +57,7 @@ def evaluation_and_map_management_handler(
     # 3. If this run was triggered by the bandit, update the bandit model
     if is_bandit_run and bandit_allocator:
         coords = evaluated_traveler.get_feature_tuple(elite_map.resolution)
+        # Use the (potentially overridden) downstream_value as reward
         reward = evaluated_traveler.fitness.downstream_value
         bandit_allocator.update_arm(coords, reward)
         

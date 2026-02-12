@@ -36,9 +36,8 @@ class ExecutionResult(BaseModel):
     retrieved_urls: List[str]
     generated_queries: List[str]
     log: str
-    # In a real implementation, this would contain rich data like
-    # page content, embeddings, etc.
     content_summary: Dict[str, Any] = {}
+    headlines: List[str] = []  # Short headlines extracted for persona feed
     api_calls: int
     execution_time: float
 

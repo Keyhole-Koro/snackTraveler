@@ -1,16 +1,19 @@
 import random
 import uuid
+import argparse
 from typing import List
 
 from snackTraveler.utils.data_models import TravelerGenome, SourceBias
 from snackTraveler.executor.traveler import Traveler
 from snackTraveler.map_elites.elite_map import EliteMap
 from snackTraveler.bandit.thompson_sampling import BanditAllocator
+from snackTraveler.utils.source_memory import SourceMemory
 from snackTraveler.services.handlers import (
     evaluation_and_map_management_handler,
     generation_scheduler_handler,
     bandit_allocator_handler
 )
+from snackTraveler.services.feedback import FeedbackCollector
 from snackTraveler.evaluation.fitness import non_dominated_sort, calculate_crowding_distance
 
 
@@ -44,9 +47,17 @@ def create_random_genome() -> TravelerGenome:
 
 def main():
     """Main simulation script."""
+    parser = argparse.ArgumentParser(description="snackTraveler simulation")
+    parser.add_argument('--interactive', action='store_true',
+                        help='Enable interactive feedback prompts during bandit loop')
+    args = parser.parse_args()
+
     print("--- Initializing Simulation ---")
     elite_map = EliteMap(resolution=MAP_RESOLUTION)
     bandit_allocator = BanditAllocator(resolution=MAP_RESOLUTION)
+    memory = SourceMemory(filepath="source_memory.json")
+    feedback = FeedbackCollector(filepath="feedback_log.jsonl")
+    print(f"Source Memory loaded: {len(memory.domains)} known domains.")
     
     # 1. Create initial population
     population: List[TravelerGenome] = [create_random_genome() for _ in range(INITIAL_POPULATION_SIZE)]
@@ -58,7 +69,7 @@ def main():
         evaluated_population = []
         for i, genome in enumerate(population):
             # Execute
-            traveler = Traveler(genome)
+            traveler = Traveler(genome, memory=memory)
             result = traveler.execute()
             
             # Evaluate (but don't add to map yet)
@@ -84,6 +95,8 @@ def main():
 
     print("\n--- Evolutionary Loop Finished ---")
     print(f"Final Elite Map contains {len(elite_map.all_elites)} elites.")
+    memory.save()
+    print(f"Source Memory saved: {len(memory.domains)} domains tracked.")
 
     # --- Bandit-driven Loop (Exploitation) ---
     print("\n--- Starting Bandit Loop (Exploitation Phase) ---")
@@ -95,15 +108,24 @@ def main():
         print(f"  - Bandit selected genome from niche: {genome_to_run.model_dump(exclude={'genome_id'})}")
         
         # 2. Execute the selected traveler
-        traveler = Traveler(genome_to_run)
+        traveler = Traveler(genome_to_run, memory=memory)
         result = traveler.execute()
         
+        # Interactive feedback
+        feedback_reward = None
+        if args.interactive:
+            rating = feedback.prompt_user(genome_to_run.genome_id, result.headlines)
+            if rating is not None:
+                feedback_reward = feedback.get_reward(genome_to_run.genome_id)
+                print(f"  - Feedback received: rating={rating}, reward={feedback_reward:.2f}")
+
         # 3. Evaluate and update map & bandit
         evaluated_traveler = evaluation_and_map_management_handler(
             result, 
             elite_map, 
             bandit_allocator, 
-            is_bandit_run=True
+            is_bandit_run=True,
+            feedback_reward=feedback_reward
         )
         evaluated_traveler.genome = genome_to_run
         
@@ -117,6 +139,8 @@ def main():
              print(f"  - Elite map was not updated.")
 
     print("\n--- Simulation Complete ---")
+    memory.save()
+    print(f"Source Memory saved: {len(memory.domains)} domains tracked.")
     
     # Final state
     print(f"\nFinal state of Bandit Allocator arms:")
