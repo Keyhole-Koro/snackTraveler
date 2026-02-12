@@ -21,6 +21,12 @@ NUM_OFFSPRING_PER_GENERATION = 5
 MAP_RESOLUTION = 10
 NUM_BANDIT_RUNS = 5
 
+# Bandit-guided evolution parameters
+# Set to 0.0 for traditional MAP-Elites (pure exploration)
+# Set to 1.0 for full bandit guidance (maximum exploitation during evolution)
+# Set to intermediate values (e.g., 0.3) for a hybrid approach
+BANDIT_GUIDANCE_WEIGHT = 0.0  # Default: traditional MAP-Elites behavior
+
 
 def create_random_genome() -> TravelerGenome:
     """Helper function to create a single random genome."""
@@ -54,6 +60,11 @@ def main():
 
     # --- Main Evolutionary Loop (Exploration) ---
     print("\n--- Starting Evolutionary Loop (Exploration Phase) ---")
+    if BANDIT_GUIDANCE_WEIGHT > 0.0:
+        print(f"Using bandit-guided parent selection with weight: {BANDIT_GUIDANCE_WEIGHT}")
+    else:
+        print("Using traditional random parent selection (pure MAP-Elites)")
+    
     for gen in range(NUM_GENERATIONS):
         evaluated_population = []
         for i, genome in enumerate(population):
@@ -62,7 +73,14 @@ def main():
             result = traveler.execute()
             
             # Evaluate (but don't add to map yet)
-            evaluated_traveler = evaluation_and_map_management_handler(result, elite_map)
+            # If using bandit guidance, update the bandit model with results
+            should_update_bandit = BANDIT_GUIDANCE_WEIGHT > 0.0
+            evaluated_traveler = evaluation_and_map_management_handler(
+                result, 
+                elite_map,
+                bandit_allocator if should_update_bandit else None,
+                is_bandit_run=should_update_bandit
+            )
             evaluated_traveler.genome = genome # Replace placeholder with actual genome
             evaluated_population.append(evaluated_traveler)
 
@@ -80,7 +98,13 @@ def main():
         print(f"Generation {gen+1}/{NUM_GENERATIONS}: Pop Size={len(population)}, Elite Map Size={len(elite_map)}, Updates={updates}")
 
         # Create new population for the next generation
-        population = generation_scheduler_handler(elite_map, NUM_OFFSPRING_PER_GENERATION)
+        # Pass bandit allocator and guidance weight if using hybrid approach
+        population = generation_scheduler_handler(
+            elite_map, 
+            NUM_OFFSPRING_PER_GENERATION,
+            bandit_allocator if BANDIT_GUIDANCE_WEIGHT > 0.0 else None,
+            BANDIT_GUIDANCE_WEIGHT
+        )
 
     print("\n--- Evolutionary Loop Finished ---")
     print(f"Final Elite Map contains {len(elite_map.all_elites)} elites.")

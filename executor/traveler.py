@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from snackTraveler.utils.data_models import TravelerGenome, ExecutionResult
 from snackTraveler.executor.browser import SearchClient, WebCrawler
-from snackPersona.llm.llm_factory import create_llm_client
+# from snackPersona.llm.llm_factory import create_llm_client  # TODO: Fix module name
 
 class Traveler:
     """
