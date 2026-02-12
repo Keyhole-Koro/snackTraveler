@@ -74,12 +74,12 @@ def main():
             
             # Evaluate (but don't add to map yet)
             # If using bandit guidance, update the bandit model with results
-            use_bandit_updates = BANDIT_GUIDANCE_WEIGHT > 0.0
+            should_update_bandit = BANDIT_GUIDANCE_WEIGHT > 0.0
             evaluated_traveler = evaluation_and_map_management_handler(
                 result, 
                 elite_map,
-                bandit_allocator if use_bandit_updates else None,
-                is_bandit_run=use_bandit_updates
+                bandit_allocator if should_update_bandit else None,
+                is_bandit_run=should_update_bandit
             )
             evaluated_traveler.genome = genome # Replace placeholder with actual genome
             evaluated_population.append(evaluated_traveler)

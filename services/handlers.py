@@ -104,23 +104,33 @@ def generation_scheduler_handler(
     """
     offspring = []
     
+    # Optimization: pre-fetch random elites if using pure random selection
+    if bandit_allocator is None or bandit_guidance_weight == 0.0:
+        # Pure random selection - fetch a pool and sample with replacement
+        random_elites = elite_map.get_random_elites(k=min(num_offspring, len(elite_map.all_elites)))
+        if not random_elites:
+            return []
+        
+        for _ in range(num_offspring):
+            parent = random.choice(random_elites)
+            child_genome = _mutate_genome(parent.genome)
+            offspring.append(child_genome)
+        return offspring
+    
+    # Hybrid approach - mix of bandit and random
     for _ in range(num_offspring):
         # Decide whether to use bandit guidance for this parent selection
-        use_bandit = (
-            bandit_allocator is not None 
-            and bandit_guidance_weight > 0.0
-            and random.random() < bandit_guidance_weight
-        )
+        use_bandit = random.random() < bandit_guidance_weight
         
         if use_bandit:
             # Use bandit to select a promising niche
             parent_genome = bandit_allocator_handler(bandit_allocator, elite_map)
         else:
             # Traditional random selection from elite map
-            parents = elite_map.get_random_elites(k=1)
-            if not parents:
+            random_elites = elite_map.get_random_elites(k=1)
+            if not random_elites:
                 continue
-            parent_genome = parents[0].genome
+            parent_genome = random_elites[0].genome
         
         # Mutate the selected parent to create offspring
         child_genome = _mutate_genome(parent_genome)
